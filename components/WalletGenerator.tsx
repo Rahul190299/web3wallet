@@ -3,6 +3,12 @@ import { motion } from "framer-motion";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { toast } from "sonner";
+import { derivePath } from "ed25519-hd-key";
+import { generateMnemonic, mnemonicToSeedSync, validateMnemonic } from "bip39";
+import { ethers } from "ethers";
+import nacl from "tweetnacl";
+import bs58 from "bs58";
+import { Keypair } from "@solana/web3.js";
 interface Wallet {
   publicKey: string;
   privateKey: string;
@@ -11,11 +17,78 @@ interface Wallet {
 }
 
 export function WalletGenerator() {
+  const [mnemonicWords, setMnemonicWords] = useState<string[]>(
+    Array(12).fill(" "),
+  );
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [pathTypes, setPathTypes] = useState<string[]>([]);
-  const [mnemonicInput,setMnemonicInput] = useState<string>("");
-  function handleGenerateWallet(){
-    
+  const [mnemonicInput, setMnemonicInput] = useState<string>("");
+  
+  const [visiblePrivateKeys, setVisiblePrivateKeys] = useState<boolean[]>([]);
+  const [visiblePhrases, setVisiblePhrases] = useState<boolean[]>([]);
+  const [gridView, setGridView] = useState<boolean>(false);
+  const generateWalletFromMnemonic = (
+    pathType: string,
+    mnemonic: string,
+    accountIndex: number,
+  ) => {
+    try {
+      const seedBuffer = mnemonicToSeedSync(mnemonic);
+      const path = `m/44'/${pathType}'/0'/${accountIndex}'`;
+      const { key: derivedSeed } = derivePath(path, seedBuffer.toString("hex"));
+      let publicKeyEncoded: string;
+      let privateKeyEncoded: string;
+      if (pathType === "60") {
+        //generate keys for ethereum
+        const privateKey = Buffer.from(derivedSeed).toString("hex");
+        privateKeyEncoded = privateKey;
+        const wallet = new ethers.Wallet(privateKeyEncoded);
+        publicKeyEncoded = wallet.address;
+      } else if (pathType === "501") {
+        //generate keys for solana
+        const { secretKey } = nacl.sign.keyPair.fromSeed(derivedSeed);
+        const keypair = Keypair.fromSecretKey(secretKey);
+        privateKeyEncoded = bs58.encode(keypair.secretKey);
+        publicKeyEncoded = keypair.publicKey.toBase58();
+      } else {
+        toast.error("Unsupported path type.");
+        return null;
+      }
+      return {
+        publicKey: publicKeyEncoded,
+        privateKey: privateKeyEncoded,
+        mnemonic: mnemonic,
+        path: path,
+      };
+    } catch (err) {
+      toast.error("Failed to generate wallet. Please try again.");
+      return null;
+    }
+  };
+  function handleGenerateWallet() {
+    let mnemonic = mnemonicInput.trim();
+    if (mnemonic) {
+      if (!validateMnemonic(mnemonic)) {
+        toast.error("Invalid recovery phrase. Please try again.");
+        return;
+      }
+    } else {
+      mnemonic = generateMnemonic();
+    }
+    const words = mnemonic.split(" ");
+    setMnemonicWords(words);
+    const wallet = generateWalletFromMnemonic(
+      pathTypes[0],
+      mnemonic,
+      wallets.length,
+    );
+    if (wallet) {
+      const updatedWallets = [...wallets, wallet];
+      setWallets(updatedWallets);
+      localStorage.setItem("wallets", JSON.stringify(updatedWallets));
+      localStorage.setItem("mnemonics", JSON.stringify(words));
+      localStorage.setItem("paths", JSON.stringify(pathTypes));
+    }
   }
   return (
     <div className="flex flex-col gap-4">
@@ -75,7 +148,7 @@ export function WalletGenerator() {
               </motion.div>
             )}
             {pathTypes.length !== 0 && (
-                <motion.div
+              <motion.div
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{
