@@ -9,6 +9,16 @@ import { ethers } from "ethers";
 import nacl from "tweetnacl";
 import bs58 from "bs58";
 import { Keypair } from "@solana/web3.js";
+import {
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  Eye,
+  EyeOff,
+  Grid2X2,
+  List,
+  Trash,
+} from "lucide-react";
 interface Wallet {
   publicKey: string;
   privateKey: string;
@@ -23,10 +33,11 @@ export function WalletGenerator() {
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [pathTypes, setPathTypes] = useState<string[]>([]);
   const [mnemonicInput, setMnemonicInput] = useState<string>("");
-  
+
   const [visiblePrivateKeys, setVisiblePrivateKeys] = useState<boolean[]>([]);
   const [visiblePhrases, setVisiblePhrases] = useState<boolean[]>([]);
   const [gridView, setGridView] = useState<boolean>(false);
+  const [showMnemonic, setShowMnemonic] = useState<boolean>(false);
   const generateWalletFromMnemonic = (
     pathType: string,
     mnemonic: string,
@@ -88,6 +99,9 @@ export function WalletGenerator() {
       localStorage.setItem("wallets", JSON.stringify(updatedWallets));
       localStorage.setItem("mnemonics", JSON.stringify(words));
       localStorage.setItem("paths", JSON.stringify(pathTypes));
+      setVisiblePrivateKeys([...visiblePrivateKeys, false]);
+      setVisiblePhrases([...visiblePhrases, false]);
+      toast.success("Wallet generated successfully!");
     }
   }
   return (
@@ -179,6 +193,70 @@ export function WalletGenerator() {
               </motion.div>
             )}
           </div>
+        </motion.div>
+      )}
+      {mnemonicWords && wallets.length > 0 && (
+        <motion.div
+          className="group flex flex-col gap-4 cursor-pointer rounded-lg border border-primary/10 p-8"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{
+            duration: 0.3,
+            ease: "easeInOut",
+          }}
+        >
+          <div
+            className="flex w-full justify-between items-center"
+            onClick={() => setShowMnemonic(!showMnemonic)}
+          >
+            <h2 className="text-2xl md:text-3xl font-bold tracking-tighter">
+              Your Secret Phrase
+            </h2>
+            <Button
+              onClick={() => setShowMnemonic(!showMnemonic)}
+              variant="ghost"
+            >
+              {showMnemonic ? (
+                <ChevronUp className="size-4" />
+              ) : (
+                <ChevronDown className="size-4" />
+              )}
+            </Button>
+          </div>
+          {showMnemonic && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                duration: 0.3,
+                ease: "easeInOut",
+              }}
+              className="flex flex-col w-full items-center justify-center"
+              onClick={() => copyToClipboard(mnemonicWords.join(" "))}
+            >
+              <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  duration: 0.3,
+                  ease: "easeInOut",
+                }}
+                className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 justify-center w-full items-center mx-auto my-8"
+              >
+                {mnemonicWords.map((word, index) => (
+                  <p
+                    key={index}
+                    className="md:text-lg bg-foreground/5 hover:bg-foreground/10 transition-all duration-300 rounded-lg p-4"
+                  >
+                    {word}
+                  </p>
+                ))}
+              </motion.div>
+              <div className="text-sm md:text-base text-primary/50 flex w-full gap-2 items-center group-hover:text-primary/80 transition-all duration-300">
+                <Copy className="size-4" /> Click Anywhere To Copy
+              </div>
+            </motion.div>
+          )}
         </motion.div>
       )}
     </div>
