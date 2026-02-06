@@ -19,6 +19,18 @@ import {
   List,
   Trash,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "./ui/alert-dialog";
+
 interface Wallet {
   publicKey: string;
   privateKey: string;
@@ -38,6 +50,7 @@ export function WalletGenerator() {
   const [visiblePhrases, setVisiblePhrases] = useState<boolean[]>([]);
   const [gridView, setGridView] = useState<boolean>(false);
   const [showMnemonic, setShowMnemonic] = useState<boolean>(false);
+  const copyToClipboard = (mnemonic: string) => {};
   const generateWalletFromMnemonic = (
     pathType: string,
     mnemonic: string,
@@ -75,6 +88,11 @@ export function WalletGenerator() {
       toast.error("Failed to generate wallet. Please try again.");
       return null;
     }
+  };
+  const handleAddWallet = () => {};
+  const handleClearWallets = () => {};
+  const handleDeleteWallet = (index :number) => {
+
   };
   function handleGenerateWallet() {
     let mnemonic = mnemonicInput.trim();
@@ -257,6 +275,116 @@ export function WalletGenerator() {
               </div>
             </motion.div>
           )}
+        </motion.div>
+      )}
+      {/* Display wallet pairs */}
+      {wallets.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{
+            delay: 0.3,
+            duration: 0.3,
+            ease: "easeInOut",
+          }}
+          className="flex flex-col gap-8 mt-6"
+        >
+          <div className="flex md:flex-row flex-col justify-between w-full gap-4 md:items-center">
+            <h2 className="tracking-tighter text-3xl md:text-4xl font-extrabold">
+              {pathTypes[0] === "60" ? "Ethereum" : "Solana"} Wallet
+            </h2>
+            <div className="flex gap-2">
+              {wallets.length > 1 && (
+                <Button
+                  variant={"ghost"}
+                  onClick={() => setGridView(!gridView)}
+                  className="hidden md:block"
+                >
+                  {gridView ? <Grid2X2 /> : <List />}
+                </Button>
+              )}
+              <Button onClick={() => handleAddWallet()}>Add Wallet</Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" className="self-end">
+                    Clear Wallets
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      Are you sure you want to delete all wallets?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete
+                      your wallets and keys from local storage.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => handleClearWallets()}>
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </div>
+          <div
+            className={`grid gap-6 grid-cols-1 col-span-1  ${
+              gridView ? "md:grid-cols-2 lg:grid-cols-3" : ""
+            }`}
+          >
+            {wallets.map((wallet: any, index: number) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  delay: 0.3 + index * 0.1,
+                  duration: 0.3,
+                  ease: "easeInOut",
+                }}
+                className="flex flex-col rounded-2xl border border-primary/10"
+              >
+                <div className="flex justify-between px-8 py-6">
+                  <h3 className="font-bold text-2xl md:text-3xl tracking-tighter ">
+                    Wallet {index + 1}
+                  </h3>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        className="flex gap-2 items-center"
+                      >
+                        <Trash className="size-4 text-destructive" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          Are you sure you want to delete all wallets?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action cannot be undone. This will permanently
+                          delete your wallets and keys from local storage.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleDeleteWallet(index)}
+                          className="text-destructive"
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </motion.div>
+            ))}
+          </div>
         </motion.div>
       )}
     </div>
