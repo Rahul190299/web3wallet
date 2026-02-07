@@ -89,11 +89,30 @@ export function WalletGenerator() {
       return null;
     }
   };
-  const handleAddWallet = () => {};
-  const handleClearWallets = () => {};
-  const handleDeleteWallet = (index :number) => {
-
+  const handleAddWallet = () => {
+    if (!mnemonicWords) {
+      toast.error("No mnemonic found. Please generate a wallet first.");
+      return;
+    }
+    const wallet = generateWalletFromMnemonic(
+      pathTypes[0],
+      mnemonicWords.join(" "),
+      wallets.length
+    );
+    if (wallet) {
+      const updatedWallets = [...wallets, wallet];
+      const updatedPathType = [pathTypes, pathTypes];
+      setWallets(updatedWallets);
+      localStorage.setItem("wallets", JSON.stringify(updatedWallets));
+      localStorage.setItem("pathTypes", JSON.stringify(updatedPathType));
+      setVisiblePrivateKeys([...visiblePrivateKeys, false]);
+      setVisiblePhrases([...visiblePhrases, false]);
+      toast.success("Wallet generated successfully!");
+    }
   };
+  const handleClearWallets = () => {};
+  const handleDeleteWallet = (index: number) => {};
+  const togglePrivateKeyVisibility = (index :number) => {};
   function handleGenerateWallet() {
     let mnemonic = mnemonicInput.trim();
     if (mnemonic) {
@@ -335,7 +354,7 @@ export function WalletGenerator() {
               gridView ? "md:grid-cols-2 lg:grid-cols-3" : ""
             }`}
           >
-            {wallets.map((wallet: any, index: number) => (
+            {wallets.map((wallet: Wallet, index: number) => (
               <motion.div
                 key={index}
                 initial={{ opacity: 0, y: -20 }}
@@ -381,6 +400,46 @@ export function WalletGenerator() {
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
+                </div>
+                <div className="flex flex-col gap-8 px-8 py-4 rounded-2xl bg-secondary/50">
+                  <div
+                    className="flex flex-col w-full gap-2"
+                    onClick={() => copyToClipboard(wallet.publicKey)}
+                  >
+                    <span className="text-lg md:text-xl font-bold tracking-tighter">
+                      Public Key
+                    </span>
+                    <p className="text-primary/80 font-medium cursor-pointer hover:text-primary transition-all duration-300 truncate">
+                      {wallet.publicKey}
+                    </p>
+                  </div>
+                </div>
+                <div>
+                  <span className="text-lg md:text-xl font-bold tracking-tighter">
+                    Private Key
+                  </span>
+                  <div className="flex justify-between">
+                    <p
+                      onClick={() => copyToClipboard(wallet.privateKey)}
+                      className="text-primary/80 font-medium 
+                    cursor-pointer hover:text-primary 
+                    transition-all duration-300 truncate"
+                    >
+                      {visiblePrivateKeys[index]
+                        ? wallet.privateKey
+                        : "•".repeat(wallet.mnemonic.length)}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    onClick={() => togglePrivateKeyVisibility(index)}
+                  >
+                    {visiblePrivateKeys[index] ? (
+                      <EyeOff className="size-4" />
+                    ) : (
+                      <Eye className="size-4" />
+                    )}
+                  </Button>
                 </div>
               </motion.div>
             ))}
