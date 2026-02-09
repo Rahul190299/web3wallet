@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
-import './globals.css';
+import "./globals.css";
+import { SolanaProvider } from "@/lib/SolanaConnectionContext";
+import { clusterApiUrl } from "@solana/web3.js";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -33,7 +35,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          <SolanaProvider rpcUrl={clusterApiUrl("devnet")}>{children}</SolanaProvider>
         </ThemeProvider>
       </body>
     </html>

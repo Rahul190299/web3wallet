@@ -8,7 +8,7 @@ import { generateMnemonic, mnemonicToSeedSync, validateMnemonic } from "bip39";
 import { ethers } from "ethers";
 import nacl from "tweetnacl";
 import bs58 from "bs58";
-import { Keypair } from "@solana/web3.js";
+import { Keypair, PublicKey } from "@solana/web3.js";
 import {
   ChevronDown,
   ChevronUp,
@@ -30,6 +30,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "./ui/alert-dialog";
+import { useSolanaConnection } from "@/lib/SolanaConnectionContext";
+import { useSolanaBalances } from "@/lib/useSolanaBalances";
 
 interface Wallet {
   publicKey: string;
@@ -37,6 +39,8 @@ interface Wallet {
   mnemonic: string;
   path: string;
 }
+const GAP_LIMIT = 10; // Phantom-like
+const MAX_SCAN = 20; // safety cap (important)
 
 export function WalletGenerator() {
   const [mnemonicWords, setMnemonicWords] = useState<string[]>(
@@ -50,6 +54,20 @@ export function WalletGenerator() {
   const [visiblePhrases, setVisiblePhrases] = useState<boolean[]>([]);
   const [gridView, setGridView] = useState<boolean>(false);
   const [showMnemonic, setShowMnemonic] = useState<boolean>(false);
+  let solanaPublicKeys: PublicKey[] = [];
+  if (pathTypes[0] === "501") {
+    const solanaPublicKeys = wallets.map((w) => {
+      const strSecretKey = bs58.decode(w.privateKey);
+      const strSolanaPubKey = Keypair.fromSecretKey(strSecretKey).publicKey;
+      return strSolanaPubKey;
+    });
+  } else {
+  }
+
+  const { balances, loading, error, refreshBalances } =
+    useSolanaBalances(solanaPublicKeys);
+    console.log(balances);
+  const connection = useSolanaConnection();
   const copyToClipboard = (mnemonic: string) => {};
   const generateWalletFromMnemonic = (
     pathType: string,
@@ -97,7 +115,7 @@ export function WalletGenerator() {
     const wallet = generateWalletFromMnemonic(
       pathTypes[0],
       mnemonicWords.join(" "),
-      wallets.length
+      wallets.length,
     );
     if (wallet) {
       const updatedWallets = [...wallets, wallet];
@@ -112,35 +130,70 @@ export function WalletGenerator() {
   };
   const handleClearWallets = () => {};
   const handleDeleteWallet = (index: number) => {};
-  const togglePrivateKeyVisibility = (index :number) => {};
+  const togglePrivateKeyVisibility = (index: number) => {};
   function handleGenerateWallet() {
+    let bUserEnteredMnemonic = false;
     let mnemonic = mnemonicInput.trim();
     if (mnemonic) {
       if (!validateMnemonic(mnemonic)) {
         toast.error("Invalid recovery phrase. Please try again.");
         return;
+      } else {
+        bUserEnteredMnemonic = true;
       }
     } else {
       mnemonic = generateMnemonic();
     }
     const words = mnemonic.split(" ");
     setMnemonicWords(words);
-    const wallet = generateWalletFromMnemonic(
-      pathTypes[0],
-      mnemonic,
-      wallets.length,
-    );
-    if (wallet) {
-      const updatedWallets = [...wallets, wallet];
-      setWallets(updatedWallets);
-      localStorage.setItem("wallets", JSON.stringify(updatedWallets));
-      localStorage.setItem("mnemonics", JSON.stringify(words));
-      localStorage.setItem("paths", JSON.stringify(pathTypes));
-      setVisiblePrivateKeys([...visiblePrivateKeys, false]);
-      setVisiblePhrases([...visiblePhrases, false]);
-      toast.success("Wallet generated successfully!");
+    if (bUserEnteredMnemonic == true) {
+      generateWalletsOnBasisOfFunds(mnemonic);
+    } else {
+      const wallet = generateWalletFromMnemonic(
+        pathTypes[0],
+        mnemonic,
+        wallets.length,
+      );
+      if (wallet) {
+        const updatedWallets = [...wallets, wallet];
+        setWallets(updatedWallets);
+        localStorage.setItem("wallets", JSON.stringify(updatedWallets));
+      }
     }
+    localStorage.setItem("mnemonics", JSON.stringify(words));
+    localStorage.setItem("paths", JSON.stringify(pathTypes));
+    setVisiblePrivateKeys([...visiblePrivateKeys, false]);
+    setVisiblePhrases([...visiblePhrases, false]);
+    toast.success("Wallet generated successfully!");
   }
+  const generateWalletsOnBasisOfFunds = async (mnemonic: string) => {
+    let emptyCount = 0;
+    let index = 0;
+    let walletsWithBalance : Wallet[] = [];
+    while (emptyCount < GAP_LIMIT && index < MAX_SCAN) {
+      const wallet = generateWalletFromMnemonic(pathTypes[0], mnemonic, index);
+
+      // const balance = await connection.getBalance(keypair.publicKey);
+      // const txs = await connection.getSignaturesForAddress(keypair.publicKey, {
+      //   limit: 1,
+      // });
+      if (wallet) {
+        const keypair = Keypair.fromSecretKey(bs58.decode(wallet.privateKey));
+        const accInfo = await connection.getAccountInfo(keypair.publicKey);
+        if (accInfo) {
+          emptyCount = 0;
+          walletsWithBalance.push(wallet);
+          //console.log(`Account ${index} USED`);
+        } else {
+          emptyCount++;
+          //console.log(`Account ${index} empty (${emptyCount})`);
+        }
+      }
+
+      index++;
+    }
+    setWallets(prev => [...prev,...walletsWithBalance]);
+  };
   return (
     <div className="flex flex-col gap-4">
       {wallets.length == 0 && (
@@ -407,39 +460,40 @@ export function WalletGenerator() {
                     onClick={() => copyToClipboard(wallet.publicKey)}
                   >
                     <span className="text-lg md:text-xl font-bold tracking-tighter">
-                      Public Key
+                      Public Key {loading ? "Loading solana balence" : balances[wallet.publicKey] }
                     </span>
                     <p className="text-primary/80 font-medium cursor-pointer hover:text-primary transition-all duration-300 truncate">
                       {wallet.publicKey}
                     </p>
+                    
                   </div>
-                </div>
-                <div>
-                  <span className="text-lg md:text-xl font-bold tracking-tighter">
-                    Private Key
-                  </span>
-                  <div className="flex justify-between">
-                    <p
-                      onClick={() => copyToClipboard(wallet.privateKey)}
-                      className="text-primary/80 font-medium 
+                  <div>
+                    <span className="text-lg md:text-xl font-bold tracking-tighter">
+                      Private Key
+                    </span>
+                    <div className="flex justify-between">
+                      <p
+                        onClick={() => copyToClipboard(wallet.privateKey)}
+                        className="text-primary/80 font-medium 
                     cursor-pointer hover:text-primary 
                     transition-all duration-300 truncate"
+                      >
+                        {visiblePrivateKeys[index]
+                          ? wallet.privateKey
+                          : "•".repeat(wallet.mnemonic.length)}
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      onClick={() => togglePrivateKeyVisibility(index)}
                     >
-                      {visiblePrivateKeys[index]
-                        ? wallet.privateKey
-                        : "•".repeat(wallet.mnemonic.length)}
-                    </p>
+                      {visiblePrivateKeys[index] ? (
+                        <EyeOff className="size-4" />
+                      ) : (
+                        <Eye className="size-4" />
+                      )}
+                    </Button>
                   </div>
-                  <Button
-                    variant="ghost"
-                    onClick={() => togglePrivateKeyVisibility(index)}
-                  >
-                    {visiblePrivateKeys[index] ? (
-                      <EyeOff className="size-4" />
-                    ) : (
-                      <Eye className="size-4" />
-                    )}
-                  </Button>
                 </div>
               </motion.div>
             ))}
