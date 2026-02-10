@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -54,19 +54,14 @@ export function WalletGenerator() {
   const [visiblePhrases, setVisiblePhrases] = useState<boolean[]>([]);
   const [gridView, setGridView] = useState<boolean>(false);
   const [showMnemonic, setShowMnemonic] = useState<boolean>(false);
-  let solanaPublicKeys: PublicKey[] = [];
-  if (pathTypes[0] === "501") {
-    const solanaPublicKeys = wallets.map((w) => {
-      const strSecretKey = bs58.decode(w.privateKey);
-      const strSolanaPubKey = Keypair.fromSecretKey(strSecretKey).publicKey;
-      return strSolanaPubKey;
-    });
-  } else {
-  }
+  
 
   const { balances, loading, error, refreshBalances } =
-    useSolanaBalances(solanaPublicKeys);
+    useSolanaBalances(wallets,pathTypes);
     console.log(balances);
+  // useEffect(()=> {
+  //   refreshBalances();
+  // },[refreshBalances])
   const connection = useSolanaConnection();
   const copyToClipboard = (mnemonic: string) => {};
   const generateWalletFromMnemonic = (
@@ -183,16 +178,18 @@ export function WalletGenerator() {
         if (accInfo) {
           emptyCount = 0;
           walletsWithBalance.push(wallet);
+          
           //console.log(`Account ${index} USED`);
         } else {
           emptyCount++;
           //console.log(`Account ${index} empty (${emptyCount})`);
         }
+        setWallets(prev => [...prev, wallet]);
       }
 
       index++;
     }
-    setWallets(prev => [...prev,...walletsWithBalance]);
+    //setWallets(prev => [...prev,...walletsWithBalance]);
   };
   return (
     <div className="flex flex-col gap-4">
