@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
 import { derivePath } from "ed25519-hd-key";
 import { generateMnemonic, mnemonicToSeedSync, validateMnemonic } from "bip39";
@@ -39,6 +40,7 @@ interface Wallet {
   mnemonic: string;
   path: string;
 }
+type WalletMap = Record<string, Wallet>;
 const GAP_LIMIT = 10; // Phantom-like
 const MAX_SCAN = 20; // safety cap (important)
 
@@ -54,11 +56,13 @@ export function WalletGenerator() {
   const [visiblePhrases, setVisiblePhrases] = useState<boolean[]>([]);
   const [gridView, setGridView] = useState<boolean>(false);
   const [showMnemonic, setShowMnemonic] = useState<boolean>(false);
-  
+  const [reading, setReading] = useState<boolean>(false);
 
-  const { balances, loading, error, refreshBalances } =
-    useSolanaBalances(wallets,pathTypes);
-    console.log(balances);
+  const { balances, loading, error, refreshBalances } = useSolanaBalances(
+    wallets,
+    pathTypes,
+  );
+  console.log(balances);
   // useEffect(()=> {
   //   refreshBalances();
   // },[refreshBalances])
@@ -164,8 +168,10 @@ export function WalletGenerator() {
   const generateWalletsOnBasisOfFunds = async (mnemonic: string) => {
     let emptyCount = 0;
     let index = 0;
-    let walletsWithBalance : Wallet[] = [];
-    while (emptyCount < GAP_LIMIT && index < MAX_SCAN) {
+    let publicKeys: PublicKey[] = [];
+    let walletMap: WalletMap = {};
+    setReading(true);
+    while (index < MAX_SCAN) {
       const wallet = generateWalletFromMnemonic(pathTypes[0], mnemonic, index);
 
       // const balance = await connection.getBalance(keypair.publicKey);
@@ -174,22 +180,19 @@ export function WalletGenerator() {
       // });
       if (wallet) {
         const keypair = Keypair.fromSecretKey(bs58.decode(wallet.privateKey));
-        const accInfo = await connection.getAccountInfo(keypair.publicKey);
-        if (accInfo) {
-          emptyCount = 0;
-          walletsWithBalance.push(wallet);
-          
-          //console.log(`Account ${index} USED`);
-        } else {
-          emptyCount++;
-          //console.log(`Account ${index} empty (${emptyCount})`);
-        }
-        setWallets(prev => [...prev, wallet]);
+        publicKeys.push(keypair.publicKey);
+        walletMap[wallet.publicKey] = wallet;
       }
 
       index++;
     }
-    //setWallets(prev => [...prev,...walletsWithBalance]);
+    const accInfo = await connection.getMultipleAccountsInfo(publicKeys);
+    const usedAccounts = publicKeys.filter((_, i) => accInfo[i] !== null);
+    const usedWallets = usedAccounts.map((acc, i) => {
+      return walletMap[acc.toBase58()];
+    });
+    setWallets((prev) => [...prev, ...usedWallets]);
+    setReading(false);
   };
   return (
     <div className="flex flex-col gap-4">
@@ -274,7 +277,14 @@ export function WalletGenerator() {
                     value={mnemonicInput}
                   />
                   <Button size={"lg"} onClick={() => handleGenerateWallet()}>
-                    {mnemonicInput ? "Add Wallet" : "Generate Wallet"}
+                    {reading ? (
+                      <>
+                        <Spinner data-icon="inline-start" />
+                        <span>Generating wallet...</span>
+                      </>
+                    ) : (
+                      <>{mnemonicInput ? "Add Wallet" : "Generate Wallet"}</>
+                    )}
                   </Button>
                 </div>
               </motion.div>
@@ -457,12 +467,14 @@ export function WalletGenerator() {
                     onClick={() => copyToClipboard(wallet.publicKey)}
                   >
                     <span className="text-lg md:text-xl font-bold tracking-tighter">
-                      Public Key {loading ? "Loading solana balence" : balances[wallet.publicKey] }
+                      Public Key{" "}
+                      {loading
+                        ? "Loading solana balence"
+                        : balances[wallet.publicKey]}
                     </span>
                     <p className="text-primary/80 font-medium cursor-pointer hover:text-primary transition-all duration-300 truncate">
                       {wallet.publicKey}
                     </p>
-                    
                   </div>
                   <div>
                     <span className="text-lg md:text-xl font-bold tracking-tighter">
