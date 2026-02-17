@@ -67,7 +67,6 @@ export function WalletGenerator() {
   //   refreshBalances();
   // },[refreshBalances])
   const connection = useSolanaConnection();
-  const copyToClipboard = (mnemonic: string) => {};
   const generateWalletFromMnemonic = (
     pathType: string,
     mnemonic: string,
@@ -127,9 +126,41 @@ export function WalletGenerator() {
       toast.success("Wallet generated successfully!");
     }
   };
-  const handleClearWallets = () => {};
-  const handleDeleteWallet = (index: number) => {};
-  const togglePrivateKeyVisibility = (index: number) => {};
+  const handleDeleteWallet = (index: number) => {
+    const updatedWallets = wallets.filter((_, i) => i !== index);
+    const updatedPathTypes = pathTypes.filter((_, i) => i !== index);
+
+    setWallets(updatedWallets);
+    setPathTypes(updatedPathTypes);
+    localStorage.setItem("wallets", JSON.stringify(updatedWallets));
+    localStorage.setItem("paths", JSON.stringify(updatedPathTypes));
+    setVisiblePrivateKeys(visiblePrivateKeys.filter((_, i) => i !== index));
+    setVisiblePhrases(visiblePhrases.filter((_, i) => i !== index));
+    toast.success("Wallet deleted successfully!");
+  };
+
+  const handleClearWallets = () => {
+    localStorage.removeItem("wallets");
+    localStorage.removeItem("mnemonics");
+    localStorage.removeItem("paths");
+    setWallets([]);
+    setMnemonicWords([]);
+    setPathTypes([]);
+    setVisiblePrivateKeys([]);
+    setVisiblePhrases([]);
+    toast.success("All wallets cleared.");
+  };
+
+  const copyToClipboard = (content: string) => {
+    navigator.clipboard.writeText(content);
+    toast.success("Copied to clipboard!");
+  };
+
+  const togglePrivateKeyVisibility = (index: number) => {
+    setVisiblePrivateKeys(
+      visiblePrivateKeys.map((visible, i) => (i === index ? !visible : visible))
+    );
+  };
   function handleGenerateWallet() {
     let bUserEnteredMnemonic = false;
     let mnemonic = mnemonicInput.trim();
@@ -468,10 +499,11 @@ export function WalletGenerator() {
                   >
                     <span className="text-lg md:text-xl font-bold tracking-tighter">
                       Public Key{" "}
-                      {loading
-                        ? "Loading solana balence"
-                        : balances[wallet.publicKey]}
+                      <span className="inline-block mb-2 bg-primary text-primary-foreground rounded px-2 text-sm ml-2 font-medium">
+                        {loading ? "0" : balances[wallet.publicKey]} SOL
+                      </span>
                     </span>
+
                     <p className="text-primary/80 font-medium cursor-pointer hover:text-primary transition-all duration-300 truncate">
                       {wallet.publicKey}
                     </p>
