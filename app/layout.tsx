@@ -4,6 +4,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 import { SolanaProvider } from "@/lib/SolanaConnectionContext";
 import { clusterApiUrl } from "@solana/web3.js";
+import { Toaster } from "sonner";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -35,7 +36,10 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <SolanaProvider rpcUrl={clusterApiUrl("devnet")}>{children}</SolanaProvider>
+          <SolanaProvider rpcUrl={clusterApiUrl("devnet")}>
+            {children}
+            <Toaster />
+          </SolanaProvider>
         </ThemeProvider>
       </body>
     </html>
