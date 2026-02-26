@@ -19,6 +19,7 @@ import {
   Grid2X2,
   List,
   Trash,
+  ArrowUpIcon,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -33,6 +34,7 @@ import {
 } from "./ui/alert-dialog";
 import { useSolanaConnection } from "@/lib/SolanaConnectionContext";
 import { useSolanaBalances } from "@/lib/useSolanaBalances";
+import { SendSolana } from "./SendSolana";
 
 interface Wallet {
   publicKey: string;
@@ -158,10 +160,12 @@ export function WalletGenerator() {
 
   const togglePrivateKeyVisibility = (index: number) => {
     setVisiblePrivateKeys(
-      visiblePrivateKeys.map((visible, i) => (i === index ? !visible : visible))
+      visiblePrivateKeys.map((visible, i) =>
+        i === index ? !visible : visible,
+      ),
     );
   };
-  function handleGenerateWallet() {
+  async function handleGenerateWallet() {
     let bUserEnteredMnemonic = false;
     let mnemonic = mnemonicInput.trim();
     if (mnemonic) {
@@ -177,7 +181,7 @@ export function WalletGenerator() {
     const words = mnemonic.split(" ");
     setMnemonicWords(words);
     if (bUserEnteredMnemonic == true) {
-      generateWalletsOnBasisOfFunds(mnemonic);
+      await generateWalletsOnBasisOfFunds(mnemonic);
     } else {
       const wallet = generateWalletFromMnemonic(
         pathTypes[0],
@@ -189,12 +193,12 @@ export function WalletGenerator() {
         setWallets(updatedWallets);
         localStorage.setItem("wallets", JSON.stringify(updatedWallets));
       }
+      toast.success("Wallet generated successfully!");
     }
     localStorage.setItem("mnemonics", JSON.stringify(words));
     localStorage.setItem("paths", JSON.stringify(pathTypes));
     setVisiblePrivateKeys([...visiblePrivateKeys, false]);
     setVisiblePhrases([...visiblePhrases, false]);
-    toast.success("Wallet generated successfully!");
   }
   const generateWalletsOnBasisOfFunds = async (mnemonic: string) => {
     let emptyCount = 0;
@@ -222,7 +226,12 @@ export function WalletGenerator() {
     const usedWallets = usedAccounts.map((acc, i) => {
       return walletMap[acc.toBase58()];
     });
-    setWallets((prev) => [...prev, ...usedWallets]);
+    if (usedWallets.length != 0) {
+      setWallets((prev) => [...prev, ...usedWallets]);
+    } else {
+      toast.error("No wallets found with fund");
+    }
+
     setReading(false);
   };
   return (
@@ -493,26 +502,28 @@ export function WalletGenerator() {
                   </AlertDialog>
                 </div>
                 <div className="flex flex-col gap-8 px-8 py-4 rounded-2xl bg-secondary/50">
-                  <div
-                    className="flex flex-col w-full gap-2"
-                    onClick={() => copyToClipboard(wallet.publicKey)}
-                  >
-                    <span className="text-lg md:text-xl font-bold tracking-tighter">
-                      Public Key{" "}
-                      <span className="inline-block mb-2 bg-primary text-primary-foreground rounded px-2 text-sm ml-2 font-medium">
-                        {loading ? "0" : balances[wallet.publicKey]} SOL
+                  <div className="flex flex-col w-full gap-2">
+                    <div className="flex justify-between">
+                      <span className="text-lg md:text-xl font-bold tracking-tighter">
+                        Public Key{" "}
+                        <span className="inline-block mb-2 bg-primary text-primary-foreground rounded px-2 text-sm ml-2 font-medium">
+                          {loading ? "0" : balances[wallet.publicKey]} SOL
+                        </span>
                       </span>
-                    </span>
-
-                    <p className="text-primary/80 font-medium cursor-pointer hover:text-primary transition-all duration-300 truncate">
+                      <SendSolana/>
+                    </div>
+                    <p
+                      onClick={() => copyToClipboard(wallet.publicKey)}
+                      className="text-primary/80 font-medium cursor-pointer hover:text-primary transition-all duration-300 truncate"
+                    >
                       {wallet.publicKey}
                     </p>
                   </div>
-                  <div>
+                  <div className="flex flex-col gap-2">
                     <span className="text-lg md:text-xl font-bold tracking-tighter">
                       Private Key
                     </span>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between w-full items-center gap-2">
                       <p
                         onClick={() => copyToClipboard(wallet.privateKey)}
                         className="text-primary/80 font-medium 
@@ -521,19 +532,19 @@ export function WalletGenerator() {
                       >
                         {visiblePrivateKeys[index]
                           ? wallet.privateKey
-                          : "•".repeat(wallet.mnemonic.length)}
+                          : "• ".repeat(wallet.mnemonic.length)}
                       </p>
+                      <Button
+                        variant="ghost"
+                        onClick={() => togglePrivateKeyVisibility(index)}
+                      >
+                        {visiblePrivateKeys[index] ? (
+                          <EyeOff className="size-4" />
+                        ) : (
+                          <Eye className="size-4" />
+                        )}
+                      </Button>
                     </div>
-                    <Button
-                      variant="ghost"
-                      onClick={() => togglePrivateKeyVisibility(index)}
-                    >
-                      {visiblePrivateKeys[index] ? (
-                        <EyeOff className="size-4" />
-                      ) : (
-                        <Eye className="size-4" />
-                      )}
-                    </Button>
                   </div>
                 </div>
               </motion.div>
