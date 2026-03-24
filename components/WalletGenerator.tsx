@@ -456,7 +456,7 @@ export function WalletGenerator() {
           >
             {wallets.map((wallet: Wallet, index: number) => (
               <motion.div
-                key={index}
+                key={wallet.publicKey}
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{
@@ -510,7 +510,7 @@ export function WalletGenerator() {
                           {loading ? "0" : balances[wallet.publicKey]} SOL
                         </span>
                       </span>
-                      <SendSolana/>
+                      <SendSolana senderPrivateKey={wallet.privateKey}/>
                     </div>
                     <p
                       onClick={() => copyToClipboard(wallet.publicKey)}
