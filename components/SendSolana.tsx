@@ -23,6 +23,7 @@ import { useSolanaConnection } from "../lib/SolanaConnectionContext";
 import { useState } from "react";
 import bs58 from "bs58";
 import { toast } from "sonner";
+import { number } from "framer-motion";
 
 function isValidSolanaAddress(address: string): boolean {
   try {
@@ -34,8 +35,10 @@ function isValidSolanaAddress(address: string): boolean {
 }
 export function SendSolana({ senderPrivateKey }: { senderPrivateKey: string }) {
   const [receiverPubKey, setReceiverPubKey] = useState<string>("");
+  const [amount, setAmount] = useState<string>("");
   const connection = useSolanaConnection();
   async function sendSol() {
+    let transferAmount = number.parse(amount);
     let bIsValidPubKey = isValidSolanaAddress(receiverPubKey);
     if (bIsValidPubKey == true) {
       const senderKeyPair = Keypair.fromSecretKey(
@@ -45,7 +48,7 @@ export function SendSolana({ senderPrivateKey }: { senderPrivateKey: string }) {
         SystemProgram.transfer({
           fromPubkey: senderKeyPair.publicKey,
           toPubkey: new PublicKey(receiverPubKey),
-          lamports: 0.1 * LAMPORTS_PER_SOL, // sending 0.1 SOL
+          lamports: transferAmount * LAMPORTS_PER_SOL, // sending 0.1 SOL
         }),
       );
 
@@ -58,8 +61,6 @@ export function SendSolana({ senderPrivateKey }: { senderPrivateKey: string }) {
     } else {
       toast.error("Invalid wallet address");
     }
-
-    
   }
   function fnHandleSendClick() {
     sendSol();
@@ -68,7 +69,7 @@ export function SendSolana({ senderPrivateKey }: { senderPrivateKey: string }) {
     <Dialog>
       <form className="">
         <DialogTrigger asChild>
-          <Button size={"sm"} >
+          <Button size={"sm"}>
             Send <ArrowUpIcon />
           </Button>
         </DialogTrigger>
@@ -88,7 +89,12 @@ export function SendSolana({ senderPrivateKey }: { senderPrivateKey: string }) {
                 onChange={(e) => setReceiverPubKey(e.target.value)}
                 placeholder="Enter address"
               />
-              <Input id="name-1" name="name" placeholder="Enter amount" />
+              <Input
+                id="name-1"
+                name="name"
+                placeholder="Enter amount"
+                onChange={(e) => setAmount(e.target.value)}
+              />
             </div>
           </div>
           <DialogFooter className="mt-1">
