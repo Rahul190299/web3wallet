@@ -35,6 +35,7 @@ import {
 import { useSolanaConnection } from "@/lib/SolanaConnectionContext";
 import { useSolanaBalances } from "@/lib/useSolanaBalances";
 import { SendSolana } from "./SendSolana";
+import { SolanaBalence } from "./SolanaBalence";
 
 interface Wallet {
   publicKey: string;
@@ -60,14 +61,10 @@ export function WalletGenerator() {
   const [showMnemonic, setShowMnemonic] = useState<boolean>(false);
   const [reading, setReading] = useState<boolean>(false);
 
-  const { balances, loading, error, refreshBalances } = useSolanaBalances(
+  const {loading, error, refreshBalances } = useSolanaBalances(
     wallets,
     pathTypes,
   );
-  console.log(balances);
-  // useEffect(()=> {
-  //   refreshBalances();
-  // },[refreshBalances])
   const connection = useSolanaConnection();
   const generateWalletFromMnemonic = (
     pathType: string,
@@ -506,9 +503,7 @@ export function WalletGenerator() {
                     <div className="flex justify-between">
                       <span className="text-lg md:text-xl font-bold tracking-tighter">
                         Public Key{" "}
-                        <span className="inline-block mb-2 bg-primary text-primary-foreground rounded px-2 text-sm ml-2 font-medium">
-                          {loading ? "0" : balances[wallet.publicKey]} SOL
-                        </span>
+                        <SolanaBalence pubKey={wallet.publicKey}/>
                       </span>
                       <SendSolana senderPrivateKey={wallet.privateKey}/>
                     </div>
