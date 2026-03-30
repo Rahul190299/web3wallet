@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { PublicKey, LAMPORTS_PER_SOL, Keypair } from "@solana/web3.js";
 import { useSolanaConnection } from "./SolanaConnectionContext";
 import bs58 from "bs58";
+import { solanaBalenceStore } from "@/store/balencesstore";
 type BalanceMap = Record<string, number>;
 interface Wallet {
   publicKey: string;
@@ -13,7 +14,7 @@ interface Wallet {
 export function useSolanaBalances(wallets: Wallet[], pathTypes: string[]) {
   const connection = useSolanaConnection();
 
-  const [balances, setBalances] = useState<BalanceMap>({});
+  const {updateSolanaBalences , setBalences}  = solanaBalenceStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
@@ -40,12 +41,24 @@ export function useSolanaBalances(wallets: Wallet[], pathTypes: string[]) {
           : 0;
       });
 
-      setBalances(map);
+      setBalences(map);
     } catch (e) {
       setError(e as Error);
     } finally {
       setLoading(false);
     }
+    if (!accounts || !connection) return;
+
+    const subscriptions = accounts.map((pubKey) => {
+      return connection.onAccountChange(pubKey, (accountInfo) => {
+        const newBalance = accountInfo.lamports / LAMPORTS_PER_SOL;
+        console.log("Updated balance:", newBalance);
+        updateSolanaBalences(pubKey.toBase58(),newBalance);
+      });
+    });
+    return () => {
+      subscriptions.forEach((id) => connection.removeAccountChangeListener(id));
+    };
   }, [wallets, connection]);
 
   useEffect(() => {
@@ -54,7 +67,6 @@ export function useSolanaBalances(wallets: Wallet[], pathTypes: string[]) {
   }, [fetchBalances]);
 
   return {
-    balances,
     loading,
     error,
     refreshBalances: fetchBalances,

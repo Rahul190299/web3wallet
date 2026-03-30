@@ -24,6 +24,7 @@ import { useState } from "react";
 import bs58 from "bs58";
 import { toast } from "sonner";
 import { number } from "framer-motion";
+import { Spinner } from "@/components/ui/spinner";
 
 function isValidSolanaAddress(address: string): boolean {
   try {
@@ -36,8 +37,11 @@ function isValidSolanaAddress(address: string): boolean {
 export function SendSolana({ senderPrivateKey }: { senderPrivateKey: string }) {
   const [receiverPubKey, setReceiverPubKey] = useState<string>("");
   const [amount, setAmount] = useState<string>("");
+  const [open, setOpen] = useState(false);
+  const [sendingSol, setSendingSol] = useState(false);
   const connection = useSolanaConnection();
   async function sendSol() {
+    setSendingSol(true);
     let transferAmount = number.parse(amount);
     let bIsValidPubKey = isValidSolanaAddress(receiverPubKey);
     if (bIsValidPubKey == true) {
@@ -57,16 +61,19 @@ export function SendSolana({ senderPrivateKey }: { senderPrivateKey: string }) {
         transaction,
         [senderKeyPair],
       );
+      toast.success(`Transaction successful : ${signature}`);
+      setOpen(false);
       console.log("Transaction successful:", signature);
     } else {
       toast.error("Invalid wallet address");
     }
+    setSendingSol(false);
   }
   function fnHandleSendClick() {
     sendSol();
   }
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <form className="">
         <DialogTrigger asChild>
           <Button size={"sm"}>
@@ -104,7 +111,14 @@ export function SendSolana({ senderPrivateKey }: { senderPrivateKey: string }) {
               </Button>
             </DialogClose>
             <Button type="submit" size={"sm"} onClick={fnHandleSendClick}>
-              Send
+              {sendingSol ? (
+                <>
+                  <Spinner data-icon="inline-start" />
+                  <span>Sending solana...</span>
+                </>
+              ) : (
+                <>Send</>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
